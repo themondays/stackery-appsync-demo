@@ -1,0 +1,25 @@
+schema {
+    query:Query
+    mutation: Mutation
+}
+
+type Query {
+    getTodos: [Todo]
+}
+
+type Mutation {
+    addTodo(todo: String): Todo
+    addComment(tid: Int, comment: String): Comment
+}
+
+type Todo {
+    id: Int
+    todo: String
+    Comments: [Comment]
+}
+
+type Comment {
+  id: ID!
+  tid: Int
+  comment: String
+}

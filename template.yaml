@@ -1,0 +1,539 @@
+AWSTemplateFormatVersion: 2010-09-09
+Transform: AWS::Serverless-2016-10-31
+Resources:
+  databaseA3F997EB:
+    Type: AWS::RDS::DBInstance
+    Properties:
+      AllocatedStorage: '5'
+      AllowMajorVersionUpgrade: true
+      AutoMinorVersionUpgrade: true
+      BackupRetentionPeriod: '1'
+      CopyTagsToSnapshot: true
+      DBInstanceClass: db.t2.micro
+      DBSubnetGroupName: !Ref databaseA3F997EBSubnetGroup
+      Engine: mysql
+      EngineVersion: '5.7'
+      MasterUsername: root
+      MasterUserPassword: '12345678'
+      MultiAZ: false
+      PubliclyAccessible: false
+      StorageType: gp2
+      Tags:
+        - Key: Name
+          Value: !Sub
+            - Stackery Stack ${StackeryStackTagName} Environment ${StackeryEnvironmentTagName} Database ${ResourceName}
+            - ResourceName: databaseA3F997EB
+      VPCSecurityGroups:
+        - !Ref databaseA3F997EBSecurityGroup
+  databaseA3F997EBSubnetGroup:
+    Type: AWS::RDS::DBSubnetGroup
+    Properties:
+      DBSubnetGroupDescription: !Sub
+        - Stackery Stack ${StackeryStackTagName} Environment ${StackeryEnvironmentTagName} Database ${ResourceName} VPC Subnets
+        - ResourceName: databaseA3F997EB
+      SubnetIds:
+        - !Ref virtualNetwork796E4266PrivateSubnet1
+        - !Ref virtualNetwork796E4266PrivateSubnet2
+      Tags:
+        - Key: Name
+          Value: !Sub
+            - Stackery Stack ${StackeryStackTagName} Environment ${StackeryEnvironmentTagName} Database ${ResourceName} VPC Subnets
+            - ResourceName: databaseA3F997EB
+  databaseA3F997EBSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Database Security Group
+      SecurityGroupIngress:
+        CidrIp: 0.0.0.0/0
+        FromPort: 3306
+        IpProtocol: tcp
+        ToPort: 3306
+      Tags:
+        - Key: Name
+          Value: !Sub
+            - Stackery Stack ${StackeryStackTagName} Environment ${StackeryEnvironmentTagName} Database ${ResourceName} VPC Security Group
+            - ResourceName: databaseA3F997EB
+      VpcId: !Ref virtualNetwork796E4266
+  graphqlAF679577:
+    Type: AWS::AppSync::GraphQLApi
+    Properties:
+      Name: !Sub
+        - ${ResourceName} From Stackery Stack ${StackeryStackTagName} Environment ${StackeryEnvironmentTagName}
+        - ResourceName: graphqlAF679577
+      AuthenticationType: API_KEY
+      LogConfig:
+        FieldLogLevel: ERROR
+        CloudWatchLogsRoleArn: !GetAtt graphqlAF679577LogsRole.Arn
+  graphqlAF679577Schema:
+    Type: AWS::AppSync::GraphQLSchema
+    Properties:
+      ApiId: !GetAtt graphqlAF679577.ApiId
+      DefinitionS3Location: graphqlAF679577/schema.graphql
+  graphqlAF679577LogsRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          Effect: Allow
+          Principal:
+            Service: appsync.amazonaws.com
+          Action: sts:AssumeRole
+      RoleName: !Sub ${AWS::StackName}-graphqlAF679577-logging
+      Policies:
+        - PolicyName: Log
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource:
+                  - !Sub arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/appsync/apis/*
+                  - !Sub arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/appsync/apis/*:log-stream:*
+  function114B2ACD:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub ${AWS::StackName}-function114B2ACD
+      Description: !Sub
+        - Stackery Stack ${StackeryStackTagName} Environment ${StackeryEnvironmentTagName} Function ${ResourceName}
+        - ResourceName: getTodos
+      CodeUri: src/getTodos
+      Handler: index.handler
+      Runtime: nodejs8.10
+      MemorySize: 3008
+      Timeout: 30
+      Tracing: Active
+      Policies:
+        - AWSXrayWriteOnlyAccess
+        - AWSLambdaENIManagementAccess
+      Environment:
+        Variables:
+          DB_INSTANCE: !Ref databaseA3F997EB
+          DB_ADDRESS: !GetAtt databaseA3F997EB.Endpoint.Address
+          DB_PORT: !GetAtt databaseA3F997EB.Endpoint.Port
+          DB_ARN: !Sub arn:aws:rds:${AWS::Region}:${AWS::AccountId}:db:${databaseA3F997EB}
+          DB_USER: root
+          DB_PASSWORD: 12345678
+          DB_DB: todos
+      VpcConfig:
+        SecurityGroupIds:
+          - !GetAtt virtualNetwork796E4266.DefaultSecurityGroup
+        SubnetIds:
+          - !Ref virtualNetwork796E4266PrivateSubnet1
+          - !Ref virtualNetwork796E4266PrivateSubnet2
+    Metadata:
+      StackeryName: getTodos
+  functionB6B9320:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub ${AWS::StackName}-functionB6B9320
+      Description: !Sub
+        - Stackery Stack ${StackeryStackTagName} Environment ${StackeryEnvironmentTagName} Function ${ResourceName}
+        - ResourceName: addTodo
+      CodeUri: src/addTodo
+      Handler: index.handler
+      Runtime: nodejs8.10
+      MemorySize: 3008
+      Timeout: 30
+      Tracing: Active
+      Policies:
+        - AWSXrayWriteOnlyAccess
+        - AWSLambdaENIManagementAccess
+      Environment:
+        Variables:
+          DB_INSTANCE: !Ref databaseA3F997EB
+          DB_ADDRESS: !GetAtt databaseA3F997EB.Endpoint.Address
+          DB_PORT: !GetAtt databaseA3F997EB.Endpoint.Port
+          DB_ARN: !Sub arn:aws:rds:${AWS::Region}:${AWS::AccountId}:db:${databaseA3F997EB}
+          DB_USER: root
+          DB_PASSWORD: 12345678
+          DB_DB: todos
+      VpcConfig:
+        SecurityGroupIds:
+          - !GetAtt virtualNetwork796E4266.DefaultSecurityGroup
+        SubnetIds:
+          - !Ref virtualNetwork796E4266PrivateSubnet1
+          - !Ref virtualNetwork796E4266PrivateSubnet2
+    Metadata:
+      StackeryName: addTodo
+  virtualNetwork796E4266:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: 10.0.0.0/16
+      Tags:
+        - Key: Name
+          Value: !Sub
+            - Stackery Stack ${StackeryStackTagName} Environment ${StackeryEnvironmentTagName} Virtual Network ${ResourceName}
+            - ResourceName: vpc
+    Metadata:
+      StackeryName: vpc
+  virtualNetwork796E4266PrivateSubnet1:
+    Metadata:
+      StackeryManaged: true
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone: !Select
+        - 0
+        - !GetAZs ''
+      CidrBlock: !Select
+        - 0
+        - !Cidr
+          - 10.0.0.0/16
+          - 4
+          - 14
+      Tags:
+        - Key: Name
+          Value: !Sub
+            - Stackery Stack ${StackeryStackTagName} Environment ${StackeryEnvironmentTagName} Virtual Network ${ResourceName} Private Subnet 1
+            - ResourceName: vpc
+      VpcId: !Ref virtualNetwork796E4266
+  virtualNetwork796E4266PrivateSubnet2:
+    Metadata:
+      StackeryManaged: true
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone: !Select
+        - 1
+        - !GetAZs ''
+      CidrBlock: !Select
+        - 1
+        - !Cidr
+          - 10.0.0.0/16
+          - 4
+          - 14
+      Tags:
+        - Key: Name
+          Value: !Sub
+            - Stackery Stack ${StackeryStackTagName} Environment ${StackeryEnvironmentTagName} Virtual Network ${ResourceName} Private Subnet 2
+            - ResourceName: vpc
+      VpcId: !Ref virtualNetwork796E4266
+  virtualNetwork796E4266PublicSubnet1:
+    Metadata:
+      StackeryManaged: true
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone: !Select
+        - 0
+        - !GetAZs ''
+      CidrBlock: !Select
+        - 2
+        - !Cidr
+          - 10.0.0.0/16
+          - 4
+          - 14
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: !Sub
+            - Stackery Stack ${StackeryStackTagName} Environment ${StackeryEnvironmentTagName} Virtual Network ${ResourceName} Public Subnet 1
+            - ResourceName: vpc
+      VpcId: !Ref virtualNetwork796E4266
+  virtualNetwork796E4266PublicSubnet2:
+    Metadata:
+      StackeryManaged: true
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone: !Select
+        - 1
+        - !GetAZs ''
+      CidrBlock: !Select
+        - 3
+        - !Cidr
+          - 10.0.0.0/16
+          - 4
+          - 14
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: !Sub
+            - Stackery Stack ${StackeryStackTagName} Environment ${StackeryEnvironmentTagName} Virtual Network ${ResourceName} Public Subnet 2
+            - ResourceName: vpc
+      VpcId: !Ref virtualNetwork796E4266
+  virtualNetwork796E4266PrivateSubnet1NatGatewayEIP:
+    Metadata:
+      StackeryManaged: true
+    Type: AWS::EC2::EIP
+    Properties:
+      Domain: vpc
+  virtualNetwork796E4266PrivateSubnet1NatGateway:
+    Metadata:
+      StackeryManaged: true
+    Type: AWS::EC2::NatGateway
+    Properties:
+      AllocationId: !GetAtt virtualNetwork796E4266PrivateSubnet1NatGatewayEIP.AllocationId
+      SubnetId: !Ref virtualNetwork796E4266PublicSubnet1
+  virtualNetwork796E4266PrivateSubnet1RouteTable:
+    Metadata:
+      StackeryManaged: true
+    Type: AWS::EC2::RouteTable
+    Properties:
+      Tags:
+        - Key: Name
+          Value: !Sub
+            - Stackery Stack ${StackeryStackTagName} Environment ${StackeryEnvironmentTagName} Virtual Network ${ResourceName} Private Subnet 1 Route Table
+            - ResourceName: vpc
+      VpcId: !Ref virtualNetwork796E4266
+  virtualNetwork796E4266PrivateSubnet1NatGatewayRoute:
+    Metadata:
+      StackeryManaged: true
+    Type: AWS::EC2::Route
+    Properties:
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId: !Ref virtualNetwork796E4266PrivateSubnet1NatGateway
+      RouteTableId: !Ref virtualNetwork796E4266PrivateSubnet1RouteTable
+  virtualNetwork796E4266PrivateSubnet1RouteTableAssociation:
+    Metadata:
+      StackeryManaged: true
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref virtualNetwork796E4266PrivateSubnet1RouteTable
+      SubnetId: !Ref virtualNetwork796E4266PrivateSubnet1
+  virtualNetwork796E4266PrivateSubnet2NatGatewayEIP:
+    Metadata:
+      StackeryManaged: true
+    Type: AWS::EC2::EIP
+    Properties:
+      Domain: vpc
+  virtualNetwork796E4266PrivateSubnet2NatGateway:
+    Metadata:
+      StackeryManaged: true
+    Type: AWS::EC2::NatGateway
+    Properties:
+      AllocationId: !GetAtt virtualNetwork796E4266PrivateSubnet2NatGatewayEIP.AllocationId
+      SubnetId: !Ref virtualNetwork796E4266PublicSubnet2
+  virtualNetwork796E4266PrivateSubnet2RouteTable:
+    Metadata:
+      StackeryManaged: true
+    Type: AWS::EC2::RouteTable
+    Properties:
+      Tags:
+        - Key: Name
+          Value: !Sub
+            - Stackery Stack ${StackeryStackTagName} Environment ${StackeryEnvironmentTagName} Virtual Network ${ResourceName} Private Subnet 2 Route Table
+            - ResourceName: vpc
+      VpcId: !Ref virtualNetwork796E4266
+  virtualNetwork796E4266PrivateSubnet2NatGatewayRoute:
+    Metadata:
+      StackeryManaged: true
+    Type: AWS::EC2::Route
+    Properties:
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId: !Ref virtualNetwork796E4266PrivateSubnet2NatGateway
+      RouteTableId: !Ref virtualNetwork796E4266PrivateSubnet2RouteTable
+  virtualNetwork796E4266PrivateSubnet2RouteTableAssociation:
+    Metadata:
+      StackeryManaged: true
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref virtualNetwork796E4266PrivateSubnet2RouteTable
+      SubnetId: !Ref virtualNetwork796E4266PrivateSubnet2
+  virtualNetwork796E4266PublicSubnetsInternetGateway:
+    Metadata:
+      StackeryManaged: true
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: Name
+          Value: !Sub
+            - Stackery Stack ${StackeryStackTagName} Environment ${StackeryEnvironmentTagName} Virtual Network ${ResourceName} Public Subnets Internet Gateway
+            - ResourceName: vpc
+  virtualNetwork796E4266PublicSubnetsInternetGatewayAttachment:
+    Metadata:
+      StackeryManaged: true
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      InternetGatewayId: !Ref virtualNetwork796E4266PublicSubnetsInternetGateway
+      VpcId: !Ref virtualNetwork796E4266
+  virtualNetwork796E4266PublicSubnetsRouteTable:
+    Metadata:
+      StackeryManaged: true
+    Type: AWS::EC2::RouteTable
+    Properties:
+      Tags:
+        - Key: Name
+          Value: !Sub
+            - Stackery Stack ${StackeryStackTagName} Environment ${StackeryEnvironmentTagName} Virtual Network ${ResourceName} Public Subnets Route Table
+            - ResourceName: vpc
+      VpcId: !Ref virtualNetwork796E4266
+  virtualNetwork796E4266PublicSubnetsInternetGatewayRoute:
+    Metadata:
+      StackeryManaged: true
+    Type: AWS::EC2::Route
+    Properties:
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref virtualNetwork796E4266PublicSubnetsInternetGateway
+      RouteTableId: !Ref virtualNetwork796E4266PublicSubnetsRouteTable
+  virtualNetwork796E4266PublicSubnet1RouteTableAssociation:
+    Metadata:
+      StackeryManaged: true
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref virtualNetwork796E4266PublicSubnetsRouteTable
+      SubnetId: !Ref virtualNetwork796E4266PublicSubnet1
+  virtualNetwork796E4266PublicSubnet2RouteTableAssociation:
+    Metadata:
+      StackeryManaged: true
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref virtualNetwork796E4266PublicSubnetsRouteTable
+      SubnetId: !Ref virtualNetwork796E4266PublicSubnet2
+  table678A3F4C:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      AttributeDefinitions:
+        - AttributeName: id
+          AttributeType: S
+      KeySchema:
+        - AttributeName: id
+          KeyType: HASH
+      ProvisionedThroughput:
+        ReadCapacityUnits: 5
+        WriteCapacityUnits: 5
+      StreamSpecification:
+        StreamViewType: NEW_AND_OLD_IMAGES
+      TableName: !Sub ${AWS::StackName}-table678A3F4C
+  graphqlAF679577QuerygetTodosResolver:
+    Type: AWS::AppSync::Resolver
+    Properties:
+      TypeName: Query
+      DataSourceName: !GetAtt graphqlAF679577Tofunction114B2ACDDataSource.Name
+      RequestMappingTemplateS3Location: graphqlAF679577/Query-getTodos-request.vm
+      ResponseMappingTemplateS3Location: graphqlAF679577/Query-getTodos-response.vm
+      ApiId: !GetAtt graphqlAF679577.ApiId
+      FieldName: getTodos
+    DependsOn: graphqlAF679577Schema
+  graphqlAF679577CommentcommentResolver:
+    Type: AWS::AppSync::Resolver
+    Properties:
+      TypeName: Comment
+      DataSourceName: !GetAtt graphqlAF679577Totable678A3F4CDataSource.Name
+      RequestMappingTemplateS3Location: graphqlAF679577/Comment-comment-request.vm
+      ResponseMappingTemplateS3Location: graphqlAF679577/Comment-comment-response.vm
+      ApiId: !GetAtt graphqlAF679577.ApiId
+      FieldName: comment
+    DependsOn: graphqlAF679577Schema
+  graphqlAF679577MutationaddTodoResolver:
+    Type: AWS::AppSync::Resolver
+    Properties:
+      TypeName: Mutation
+      DataSourceName: !GetAtt graphqlAF679577TofunctionB6B9320DataSource.Name
+      RequestMappingTemplateS3Location: graphqlAF679577/Mutation-addTodo-request.vm
+      ResponseMappingTemplateS3Location: graphqlAF679577/Mutation-addTodo-response.vm
+      ApiId: !GetAtt graphqlAF679577.ApiId
+      FieldName: addTodo
+    DependsOn: graphqlAF679577Schema
+  graphqlAF679577MutationaddCommentResolver:
+    Type: AWS::AppSync::Resolver
+    Properties:
+      TypeName: Mutation
+      DataSourceName: !GetAtt graphqlAF679577Totable678A3F4CDataSource.Name
+      RequestMappingTemplateS3Location: graphqlAF679577/Mutation-addComment-request.vm
+      ResponseMappingTemplateS3Location: graphqlAF679577/Mutation-addComment-response.vm
+      ApiId: !GetAtt graphqlAF679577.ApiId
+      FieldName: addComment
+    DependsOn: graphqlAF679577Schema
+  graphqlAF679577TofunctionB6B9320DataSource:
+    Type: AWS::AppSync::DataSource
+    Properties:
+      Type: AWS_LAMBDA
+      ServiceRoleArn: !GetAtt graphqlAF679577TofunctionB6B9320AccessRole.Arn
+      ApiId: !GetAtt graphqlAF679577.ApiId
+      Name: functionB6B9320
+      LambdaConfig:
+        LambdaFunctionArn: !GetAtt functionB6B9320.Arn
+  graphqlAF679577TofunctionB6B9320AccessRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          Effect: Allow
+          Principal:
+            Service: appsync.amazonaws.com
+          Action: sts:AssumeRole
+      RoleName: !Sub ${AWS::StackName}-graphqlAF679577-to-functionB6B9320
+      Policies:
+        - PolicyName: Access
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action: lambda:InvokeFunction
+                Resource: !GetAtt functionB6B9320.Arn
+  graphqlAF679577Tofunction114B2ACDDataSource:
+    Type: AWS::AppSync::DataSource
+    Properties:
+      Type: AWS_LAMBDA
+      ServiceRoleArn: !GetAtt graphqlAF679577Tofunction114B2ACDAccessRole.Arn
+      ApiId: !GetAtt graphqlAF679577.ApiId
+      Name: function114B2ACD
+      LambdaConfig:
+        LambdaFunctionArn: !GetAtt function114B2ACD.Arn
+  graphqlAF679577Tofunction114B2ACDAccessRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          Effect: Allow
+          Principal:
+            Service: appsync.amazonaws.com
+          Action: sts:AssumeRole
+      RoleName: !Sub ${AWS::StackName}-graphqlAF679577-to-function114B2ACD
+      Policies:
+        - PolicyName: Access
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action: lambda:InvokeFunction
+                Resource: !GetAtt function114B2ACD.Arn
+  graphqlAF679577Totable678A3F4CDataSource:
+    Type: AWS::AppSync::DataSource
+    Properties:
+      Type: AMAZON_DYNAMODB
+      ServiceRoleArn: !GetAtt graphqlAF679577Totable678A3F4CAccessRole.Arn
+      ApiId: !GetAtt graphqlAF679577.ApiId
+      Name: table678A3F4C
+      DynamoDBConfig:
+        TableName: !Ref table678A3F4C
+        AwsRegion: !Ref AWS::Region
+  graphqlAF679577Totable678A3F4CAccessRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          Effect: Allow
+          Principal:
+            Service: appsync.amazonaws.com
+          Action: sts:AssumeRole
+      RoleName: !Sub ${AWS::StackName}-graphqlAF679577-to-table678A3F4C
+      Policies:
+        - PolicyName: Access
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - dynamodb:GetItem
+                  - dynamodb:PutItem
+                  - dynamodb:DeleteItem
+                  - dynamodb:UpdateItem
+                  - dynamodb:Query
+                  - dynamodb:Scan
+                  - dynamodb:BatchGetItem
+                  - dynamodb:BatchWriteItem
+                Resource:
+                  - !GetAtt table678A3F4C.Arn
+                  - !Sub ${table678A3F4C.Arn}/index/*
+Parameters:
+  StackeryStackTagName:
+    Type: String
+    Description: Stack Name (injected by Stackery at deployment time)
+  StackeryEnvironmentTagName:
+    Type: String
+    Description: Environment Name (injected by Stackery at deployment time)
